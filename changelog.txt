@@ -1,0 +1,7 @@
+=====================================
+Date	  : Version: Description
+=====================================
+ 
+2020-01-22: v1.0.0  : Initial Release.
+
+2020-06-30: v1.0.1  : Fix bug regarding test mode and merchant tokens.
