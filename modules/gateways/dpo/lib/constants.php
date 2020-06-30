@@ -11,8 +11,8 @@
  */
 
 $docroot = $_SERVER['REQUEST_SCHEME'] . '://' . $_SERVER['SERVER_NAME'];
-if (isset($_SERVER['SERVER_PORT'])) {
+if ( isset( $_SERVER['SERVER_PORT'] ) ) {
     $docroot .= ':' . $_SERVER['SERVER_PORT'];
 }
 $docroot .= '/';
-define("DOC_ROOT", $docroot);
+define( "DOC_ROOT", $docroot );
