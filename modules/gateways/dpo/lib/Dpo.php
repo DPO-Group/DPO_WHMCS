@@ -16,10 +16,12 @@ class Dpo
 
     private $dpoUrl;
     private $dpoGateway;
+    private $testMode = false;
 
-    public function __construct($testMode = false)
+    public function __construct( $testMode = false )
     {
-        if ($testMode) {
+        $this->testMode = $testMode;
+        if ( $testMode ) {
             $this->dpoUrl = self::DPO_URL_TEST;
         } else {
             $this->dpoUrl = self::DPO_URL_LIVE;
@@ -37,23 +39,23 @@ class Dpo
      * @param $data
      * @return array
      */
-    public function createToken($data)
+    public function createToken( $data )
     {
-        $companyToken = $data['companyToken'];
-        $accountType = $data['accountType'];
-        $paymentAmount = $data['paymentAmount'];
-        $paymentCurrency = $data['paymentCurrency'];
+        $companyToken      = $this->testMode ? '9F416C11-127B-4DE2-AC7F-D5710E4C5E0A' : $data['companyToken'];
+        $accountType       = $this->testMode ? '3854' : $data['accountType'];
+        $paymentAmount     = $data['paymentAmount'];
+        $paymentCurrency   = $data['paymentCurrency'];
         $customerFirstName = $data['customerFirstName'];
-        $customerLastName = $data['customerLastName'];
-        $customerAddress = $data['customerAddress'];
-        $customerCity = $data['customerCity'];
-        $customerPhone = $data['customerPhone'];
-        $redirectURL = $data['redirectURL'];
-        $backURL = $data['backUrl'];
-        $customerEmail = $data['customerEmail'];
-        $reference = $data['companyRef'];
+        $customerLastName  = $data['customerLastName'];
+        $customerAddress   = $data['customerAddress'];
+        $customerCity      = $data['customerCity'];
+        $customerPhone     = $data['customerPhone'];
+        $redirectURL       = $data['redirectURL'];
+        $backURL           = $data['backUrl'];
+        $customerEmail     = $data['customerEmail'];
+        $reference         = $data['companyRef'];
 
-        $odate = date('Y/m/d H:i');
+        $odate   = date( 'Y/m/d H:i' );
         $postXml = <<<POSTXML
         <?xml version="1.0" encoding="utf-8"?>
         <API3G>
@@ -83,50 +85,50 @@ class Dpo
 POSTXML;
 
         $curl = curl_init();
-        curl_setopt_array($curl, array(
-            CURLOPT_URL => $this->dpoUrl . "/API/v6/",
+        curl_setopt_array( $curl, array(
+            CURLOPT_URL            => $this->dpoUrl . "/API/v6/",
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_ENCODING => "",
-            CURLOPT_MAXREDIRS => 10,
-            CURLOPT_TIMEOUT => 30,
-            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-            CURLOPT_CUSTOMREQUEST => "POST",
-            CURLOPT_POSTFIELDS => $postXml,
-            CURLOPT_HTTPHEADER => array(
+            CURLOPT_ENCODING       => "",
+            CURLOPT_MAXREDIRS      => 10,
+            CURLOPT_TIMEOUT        => 30,
+            CURLOPT_HTTP_VERSION   => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST  => "POST",
+            CURLOPT_POSTFIELDS     => $postXml,
+            CURLOPT_HTTPHEADER     => array(
                 "cache-control: no-cache",
             ),
-        ));
+        ) );
 
-        $response = curl_exec($curl);
-        $error = curl_error($curl);
-        if ($error) {
-            var_dump($error);
+        $response = curl_exec( $curl );
+        $error    = curl_error( $curl );
+        if ( $error ) {
+            var_dump( $error );
         }
 
-        curl_close($curl);
+        curl_close( $curl );
 
-        if ($response != '') {
-            $xml = new \SimpleXMLElement($response);
+        if ( $response != '' ) {
+            $xml = new \SimpleXMLElement( $response );
 
             // Check if token was created successfully
-            if ($xml->xpath('Result')[0] != '000') {
+            if ( $xml->xpath( 'Result' )[0] != '000' ) {
                 exit();
             } else {
-                $transToken = $xml->xpath('TransToken')[0]->__toString();
-                $result = $xml->xpath('Result')[0]->__toString();
-                $resultExplanation = $xml->xpath('ResultExplanation')[0]->__toString();
-                $transRef = $xml->xpath('TransRef')[0]->__toString();
+                $transToken        = $xml->xpath( 'TransToken' )[0]->__toString();
+                $result            = $xml->xpath( 'Result' )[0]->__toString();
+                $resultExplanation = $xml->xpath( 'ResultExplanation' )[0]->__toString();
+                $transRef          = $xml->xpath( 'TransRef' )[0]->__toString();
 
                 return [
-                    'success' => true,
-                    'result' => $result,
-                    'transToken' => $transToken,
+                    'success'           => true,
+                    'result'            => $result,
+                    'transToken'        => $transToken,
                     'resultExplanation' => $resultExplanation,
-                    'transRef' => $transRef,
+                    'transRef'          => $transRef,
                 ];
             }
         } else {
-            throw new \Exception('Token could not be created. Please go back and try again');
+            throw new \Exception( 'Token could not be created. Please go back and try again' );
         }
     }
 
@@ -135,38 +137,38 @@ POSTXML;
      * @param $data
      * @return bool|string
      */
-    public function verifyToken($data)
+    public function verifyToken( $data )
     {
         $companyToken = $data['companyToken'];
-        $transToken = $data['transToken'];
+        $transToken   = $data['transToken'];
 
         try {
             $curl = curl_init();
-            curl_setopt_array($curl, array(
-                CURLOPT_URL => $this->dpoUrl . "/API/v6/",
+            curl_setopt_array( $curl, array(
+                CURLOPT_URL            => $this->dpoUrl . "/API/v6/",
                 CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_ENCODING => "",
-                CURLOPT_MAXREDIRS => 10,
-                CURLOPT_TIMEOUT => 30,
-                CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-                CURLOPT_CUSTOMREQUEST => "POST",
-                CURLOPT_POSTFIELDS => "<?xml version=\"1.0\" encoding=\"utf-8\"?>\r\n<API3G>\r\n  <CompanyToken>" . $companyToken . "</CompanyToken>\r\n  <Request>verifyToken</Request>\r\n  <TransactionToken>" . $transToken . "</TransactionToken>\r\n</API3G>",
-                CURLOPT_HTTPHEADER => array(
+                CURLOPT_ENCODING       => "",
+                CURLOPT_MAXREDIRS      => 10,
+                CURLOPT_TIMEOUT        => 30,
+                CURLOPT_HTTP_VERSION   => CURL_HTTP_VERSION_1_1,
+                CURLOPT_CUSTOMREQUEST  => "POST",
+                CURLOPT_POSTFIELDS     => "<?xml version=\"1.0\" encoding=\"utf-8\"?>\r\n<API3G>\r\n  <CompanyToken>" . $companyToken . "</CompanyToken>\r\n  <Request>verifyToken</Request>\r\n  <TransactionToken>" . $transToken . "</TransactionToken>\r\n</API3G>",
+                CURLOPT_HTTPHEADER     => array(
                     "cache-control: no-cache",
                 ),
-            ));
+            ) );
 
-            $response = curl_exec($curl);
-            $err = curl_error($curl);
+            $response = curl_exec( $curl );
+            $err      = curl_error( $curl );
 
-            curl_close($curl);
+            curl_close( $curl );
 
-            if (strlen($err) > 0) {
+            if ( strlen( $err ) > 0 ) {
                 echo "cURL Error #:" . $err;
             } else {
                 return $response;
             }
-        } catch (Exception $e) {
+        } catch ( Exception $e ) {
             throw $e;
         }
     }
