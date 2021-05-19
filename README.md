@@ -4,7 +4,7 @@
 This is the DPO Group plugin for WHMCS. Please feel free to contact the [DPO Group support team](https://www.directpay.online/support/) should you require any assistance.
 
 ## Installation
-Please navigate to the [releases page](https://github.com/DirectPay-Online/DPO_WHMCS/releases), download the latest release (v1.0.1) and unzip. You will them be able to follow the integration guide which is included in the zip.
+Please navigate to the [releases page](https://github.com/DirectPay-Online/DPO_WHMCS/releases), download the latest release (v1.0.1) and unzip. You will then be able to follow the integration guide which is included in the zip.
 
 ## Collaboration
 
