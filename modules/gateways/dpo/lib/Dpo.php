@@ -1,6 +1,6 @@
 <?php
 /*
- * Copyright (c) 2020 DPO Group
+ * Copyright (c) 2021 DPO Group
  *
  * Author: App Inlet (Pty) Ltd
  *
@@ -73,6 +73,7 @@ class Dpo
         <RedirectURL>$redirectURL</RedirectURL>
         <BackURL>$backURL</BackURL>
         <customerEmail>$customerEmail</customerEmail>
+        <TransactionSource>whmcs</TransactionSource>
         </Transaction>
         <Services>
         <Service>
@@ -101,34 +102,35 @@ POSTXML;
 
         $response = curl_exec( $curl );
         $error    = curl_error( $curl );
-        if ( $error ) {
-            var_dump( $error );
-        }
 
         curl_close( $curl );
 
         if ( $response != '' ) {
-            $xml = new \SimpleXMLElement( $response );
+            $xml               = new \SimpleXMLElement( $response );
+            $result            = $xml->xpath( 'Result' )[0]->__toString();
+            $resultExplanation = $xml->xpath( 'ResultExplanation' )[0]->__toString();
+            $returnResult      = [
+                'result'            => $result,
+                'resultExplanation' => $resultExplanation,
+            ];
 
             // Check if token was created successfully
             if ( $xml->xpath( 'Result' )[0] != '000' ) {
-                exit();
+                $returnResult['success'] = 'false';
             } else {
-                $transToken        = $xml->xpath( 'TransToken' )[0]->__toString();
-                $result            = $xml->xpath( 'Result' )[0]->__toString();
-                $resultExplanation = $xml->xpath( 'ResultExplanation' )[0]->__toString();
-                $transRef          = $xml->xpath( 'TransRef' )[0]->__toString();
-
-                return [
-                    'success'           => true,
-                    'result'            => $result,
-                    'transToken'        => $transToken,
-                    'resultExplanation' => $resultExplanation,
-                    'transRef'          => $transRef,
-                ];
+                $transToken                 = $xml->xpath( 'TransToken' )[0]->__toString();
+                $transRef                   = $xml->xpath( 'TransRef' )[0]->__toString();
+                $returnResult['success']    = 'true';
+                $returnResult['transToken'] = $transToken;
+                $returnResult['transRef']   = $transRef;
             }
+            return $returnResult;
         } else {
-            throw new \Exception( 'Token could not be created. Please go back and try again' );
+            return [
+                'success'           => false,
+                'result'            => !empty( $error ) ? $error : 'Unknown error occurred in token creation',
+                'resultExplanation' => !empty( $error ) ? $error : 'Unknown error occurred in token creation',
+            ];
         }
     }
 
