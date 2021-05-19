@@ -1,6 +1,6 @@
 <?php
 /*
- * Copyright (c) 2020 DPO Group
+ * Copyright (c) 2021 DPO Group
  *
  * Author: App Inlet (Pty) Ltd
  *
@@ -60,7 +60,9 @@ if ( !function_exists( 'createDPOGroupdpoTable' ) ) {
 createDPOGroupdpoTable();
 
 if ( isset( $_POST['INITIATE'] ) && $_POST['INITIATE'] == 'initiate' ) {
-    $params = json_decode( base64_decode( $_POST['jparams'] ), true );
+    $params    = json_decode( base64_decode( $_POST['jparams'] ), true );
+    $systemUrl = $params['systemurl'];
+
     dpo_initiate( $params );
 }
 
@@ -121,10 +123,10 @@ function dpo_config()
 
 function dpo_link( $params )
 {
-    $jparams = base64_encode( json_encode( $params ) );
-
-    $html = <<<HTML
-    <form method="post" action="modules/gateways/dpo.php" >
+    $jparams   = base64_encode( json_encode( $params ) );
+    $systemurl = $params['systemurl'];
+    $html      = <<<HTML
+    <form method="post" action="{$systemurl}modules/gateways/dpo.php" >
     <input type="hidden" name="INITIATE" value="initiate" />
     <input type="hidden" name="jparams" value="$jparams" />
     <input type="submit" value="Pay Using DPO Group" />
@@ -161,7 +163,7 @@ function dpo_initiate( $params )
     $dpo    = new DPOGroup\Dpo( $testMode );
     $tokens = $dpo->createToken( $data );
 
-    if ( $tokens['success'] === true ) {
+    if ( $tokens['success'] === 'true' ) {
         $data['transToken'] = $tokens['transToken'];
         $verify             = $dpo->verifyToken( $data );
 
@@ -175,26 +177,37 @@ function dpo_initiate( $params )
                 Capsule::table( $tbl )
                     ->insert(
                         [
-                            ['recordtype' => 'dpotest',
-                                'recordid'    => $data['transToken'],
-                                'recordval'   => $testMode,
+                            [
+                                'recordtype' => 'dpotest',
+                                'recordid'   => $data['transToken'],
+                                'recordval'  => $testMode,
                             ],
-                            ['recordtype' => 'dpoclient',
-                                'recordid'    => $data['transToken'],
-                                'recordval'   => $data['companyToken'],
+                            [
+                                'recordtype' => 'dpoclient',
+                                'recordid'   => $data['transToken'],
+                                'recordval'  => $data['companyToken'],
                             ],
-                            ['recordtype' => 'systemurl',
-                                'recordid'    => $data['transToken'],
-                                'recordval'   => $systemUrl,
+                            [
+                                'recordtype' => 'systemurl',
+                                'recordid'   => $data['transToken'],
+                                'recordval'  => $systemUrl,
                             ],
-                            ['recordtype' => 'dporef',
-                                'recordid'    => $data['transToken'],
-                                'recordval'   => $params['invoiceid'],
+                            [
+                                'recordtype' => 'dporef',
+                                'recordid'   => $data['transToken'],
+                                'recordval'  => $params['invoiceid'],
                             ],
                         ]
                     );
                 header( 'Location: ' . $payUrl );
             }
         }
+    } else {
+        echo 'Something went wrong: ' . $tokens['resultExplanation'];
+        $url = $systemUrl . 'viewinvoice.php?id=' . $data['companyRef'];
+        echo <<<HTML
+<br><br><a href="$url">Click here to return</a>
+HTML;
+
     }
 }

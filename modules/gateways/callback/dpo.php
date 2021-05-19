@@ -1,6 +1,6 @@
 <?php
 /*
- * Copyright (c) 2020 DPO Group
+ * Copyright (c) 2021 DPO Group
  *
  * Author: App Inlet (Pty) Ltd
  *
@@ -125,6 +125,6 @@ if ( $verify != '' ) {
             ->where( 'recordid', $transId )
             ->delete();
 
-        header( 'Loaction: ' . $systemUrl . 'clientarea.php?action=invoices' );
+        header( 'Location: ' . $systemUrl . 'clientarea.php?action=invoices' );
     }
 }
