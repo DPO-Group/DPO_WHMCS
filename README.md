@@ -1,10 +1,10 @@
 # DPO_WHMCS
-## DPO Group WHMCS plugin v1.0.2 for WHMCS v8.1.3
+## DPO Group WHMCS plugin v1.0.3 for WHMCS v8.1.3
 
 This is the DPO Group plugin for WHMCS. Please feel free to contact the [DPO Group support team](https://dpogroup.com/contact-us/) should you require any assistance.
 
 ## Installation
-Please navigate to the [releases page](https://github.com/DPO-Group/DPO_WHMCS/releases), download the latest release (v1.0.2) and unzip. You will then be able to follow the integration guide which is included in the zip.
+Please navigate to the [releases page](https://github.com/DPO-Group/DPO_WHMCS/releases), download the latest release (v1.0.3) and unzip. You will then be able to follow the integration guide which is included in the zip.
 
 ## Collaboration
 
