@@ -145,7 +145,7 @@ function dpo_initiate( $params )
     $returnUrl = $systemUrl . 'modules/gateways/callback/dpo.php';
 
     $data                      = [];
-    $data['companyToken']      = $testMode ? '9F416C11-127B-4DE2-AC7F-D5710E4C5E0A' : $params['CompanyToken'];
+    $data['companyToken']      = $params['CompanyToken'];
     $data['accountType']       = $params['AccountType'];
     $data['paymentAmount']     = $params['amount'];
     $data['paymentCurrency']   = $params['currency'];
