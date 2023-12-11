@@ -2,6 +2,9 @@
 Date	  : Version: Description
 =====================================
 
+2023-12-11: v1.0.4  : Add support for WHMCS 8.8.0 and PHP 8.1.
+                      Decline transactions if the reference and order ID don't match.
+
 2022-04-12: v1.0.3  : Hotfix whitespace issue.
 
 2021-05-19: v1.0.2  : Improve error message handling.
