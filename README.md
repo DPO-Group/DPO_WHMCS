@@ -1,5 +1,5 @@
 # DPO_WHMCS
-## DPO Group WHMCS plugin v1.0.4 for WHMCS v8.8.0
+## DPO Pay WHMCS plugin v1.0.4 for WHMCS v8.8.0
 
 This is the DPO Group plugin for WHMCS. Please feel free to contact the [DPO Group support team](https://dpogroup.com/contact-us/) should you require any assistance.
 
