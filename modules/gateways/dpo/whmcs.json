@@ -5,20 +5,26 @@
   "license": "proprietary",
   "category": "payments",
   "description": {
-    "name": "DPO Group",
-    "tagline": "DPO Group",
-    "long": "DPO Group provides a payment service to merchants."
+    "name": "DPO Pay",
+    "tagline": "Accept local and international payments using card and other payment methods.",
+    "long": "DPO's highly secure payment platform makes payments simple by allowing businesses to accept credit cards, mobile payments and cross-border payments. Make payments easy and secure. Make your customers happy. DPO Group’s mission is to bring African businesses advanced online and offline payment processing technologies while supporting growth and financial inclusion. The DPO Group payment processing solution allows merchants to accept payments online & offline and seamless payment processing.",
+    "features": [
+      "Trusted to offer the highest standard in payment processing",
+      "Secure and proud fraud monitoring and data security is always a top priority",
+      "Access to multiple payment methods with one integration."
+    ]
   },
   "logo": {
-    "filename": "logo.png"
+    "filename": "images/logo.png"
   },
   "support": {
-    "docs_url": "https://github.com/DirectPay-Online/DPO_WHMCS"
+    "homepage": "https:\/\/dpogroup.com\/",
+    "docs_url": "https:\/\/github.com\/DPO-Group\/DPO_WHMCS"
   },
   "authors": [
     {
       "name": "DPO Group",
-      "homepage": "https://www.dpogroup.com/africa/"
+      "homepage": "https:\/\/dpogroup.com\/"
     }
   ]
 }

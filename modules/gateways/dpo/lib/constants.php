@@ -1,6 +1,6 @@
 <?php
 /*
- * Copyright (c) 2021 DPO Group
+ * Copyright (c) 2023 DPO Group
  *
  * Author: App Inlet (Pty) Ltd
  *
@@ -11,8 +11,8 @@
  */
 
 $docroot = $_SERVER['REQUEST_SCHEME'] . '://' . $_SERVER['SERVER_NAME'];
-if ( isset( $_SERVER['SERVER_PORT'] ) ) {
+if (isset($_SERVER['SERVER_PORT'])) {
     $docroot .= ':' . $_SERVER['SERVER_PORT'];
 }
 $docroot .= '/';
-define( "DOC_ROOT", $docroot );
+define("DOC_ROOT", $docroot);
