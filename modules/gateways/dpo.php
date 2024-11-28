@@ -1,6 +1,6 @@
 <?php
 /*
- * Copyright (c) 2023 DPO Group
+ * Copyright (c) 2024 DPO Group
  *
  * Author: App Inlet (Pty) Ltd
  *
@@ -15,8 +15,8 @@ require_once __DIR__ . '/../../init.php';
 require_once __DIR__ . '/../../includes/gatewayfunctions.php';
 require_once __DIR__ . '/../../includes/invoicefunctions.php';
 
-require_once 'dpo/lib/constants.php';
-require_once 'dpo/lib/Dpo.php';
+require_once __DIR__ . '/dpo/vendor/autoload.php';
+require_once 'dpo/lib/Services/DPOPaymentService.php';
 
 if (!defined("WHMCS")) {
     die("This file cannot be accessed directly");
@@ -24,9 +24,7 @@ if (!defined("WHMCS")) {
 
 use WHMCS\Database\Capsule;
 
-if (!defined('_DB_PREFIX_')) {
-    define('_DB_PREFIX_', 'tbl');
-}
+const DB_PREFIX = 'tbl';
 
 /**
  * Check for existence of dpogroupdpo table and create if not
@@ -36,13 +34,13 @@ if (!function_exists('createDPOGroupdpoTable')) {
     function createDPOGroupdpoTable()
     {
         try {
-            if (Capsule::schema()->hasTable(_DB_PREFIX_ . 'paygatedpo')) {
-                Capsule::schema()->rename(_DB_PREFIX_ . 'paygatedpo', _DB_PREFIX_ . 'dpogroupdpo');
+            if (Capsule::schema()->hasTable(DB_PREFIX . 'paygatedpo')) {
+                Capsule::schema()->rename(DB_PREFIX . 'paygatedpo', DB_PREFIX . 'dpogroupdpo');
             }
 
-            if (!Capsule::schema()->hasTable(_DB_PREFIX_ . 'dpogroupdpo')) {
+            if (!Capsule::schema()->hasTable(DB_PREFIX . 'dpogroupdpo')) {
                 Capsule::schema()->create(
-                    _DB_PREFIX_ . 'dpogroupdpo',
+                    DB_PREFIX . 'dpogroupdpo',
                     function ($table) {
                         $table->increments('id');
                         $table->string('recordtype', 20);
@@ -53,6 +51,7 @@ if (!function_exists('createDPOGroupdpoTable')) {
                 );
             }
         } catch (\Exception $e) {
+            logActivity($e->getMessage());
         }
     }
 }
@@ -63,7 +62,12 @@ if (isset($_POST['INITIATE']) && $_POST['INITIATE'] == 'initiate') {
     $params    = json_decode(base64_decode($_POST['jparams']), true);
     $systemUrl = $params['systemurl'];
 
-    dpo_initiate($params);
+    $dpoPaymentService = new DPOGroup\DPOPaymentService();
+    try {
+        $dpoPaymentService->dpoInitiate($params);
+    } catch (Exception $e) {
+        logActivity($e->getMessage());
+    }
 }
 
 /**
@@ -77,7 +81,7 @@ if (isset($_POST['INITIATE']) && $_POST['INITIATE'] == 'initiate') {
 function dpo_MetaData()
 {
     return array(
-        'DisplayName'                 => 'Direct Pay Online (DPO)',
+        'DisplayName'                 => 'DPO Pay',
         'APIVersion'                  => '1.1', // Use API Version 1.1
         'DisableLocalCreditCardInput' => true,
         'TokenisedStorage'            => true,
@@ -113,106 +117,20 @@ function dpo_config()
             'Default'      => '',
             'Description'  => 'Enter the Service Type here',
         ),
-        'testMode'     => array(
-            'FriendlyName' => 'Test Mode',
-            'Type'         => 'yesno',
-            'Description'  => 'Tick to enable test mode',
-        ),
     );
 }
 
 function dpo_link($params)
 {
-    $jparams   = base64_encode(json_encode($params));
-    $systemurl = $params['systemurl'];
-    $html      = <<<HTML
-    <form method="post" action="{$systemurl}modules/gateways/dpo.php" >
+    $jParams   = base64_encode(json_encode($params));
+    $systemURL = $params['systemurl'];
+    return <<<HTML
+    <form method="post" action="{$systemURL}modules/gateways/dpo.php" >
     <input type="hidden" name="INITIATE" value="initiate" />
-    <input type="hidden" name="jparams" value="$jparams" />
-    <input type="submit" value="Pay Using DPO Pay" />
+    <input type="hidden" name="jparams" value="$jParams" />
+    <input type="submit" value="Pay using DPO Pay" />
     </form>
 HTML;
 
-    return $html;
 }
 
-function dpo_initiate($params)
-{
-    $testMode = $params['testMode'] === 'on' ? true : false;
-    // Callback urls
-    $systemUrl = $params['systemurl'];
-    $notifyUrl = $systemUrl . 'modules/gateways/callback/dpo.php';
-    $returnUrl = $systemUrl . 'modules/gateways/callback/dpo.php';
-
-    $data                      = [];
-    $data['companyToken']      = $params['CompanyToken'];
-    $data['accountType']       = $params['AccountType'];
-    $data['paymentAmount']     = $params['amount'];
-    $data['paymentCurrency']   = $params['currency'];
-    $data['customerFirstName'] = $params['clientdetails']['firstname'];
-    $data['customerLastName']  = $params['clientdetails']['lastname'];
-    $data['customerAddress']   = $params['clientdetails']['address1'] . ' ' . $params['clientdetails']['address2'];
-    $data['customerCity']      = $params['clientdetails']['city'];
-    $data['customerPhone']     = $params['clientdetails']['phonenumber'];
-    $data['customerEmail']     = $params['clientdetails']['email'];
-    $data['redirectURL']       = $returnUrl;
-    $data['backUrl']           = $params['returnurl'];
-    $data['companyRef']        = $params['invoiceid'];
-    $data['customerCountry']   = $params['clientdetails']['countrycode'];
-
-    // Create token
-    $dpo    = new DPOGroup\Dpo($testMode);
-    $tokens = $dpo->createToken($data);
-    logTransaction('dpo.php', null, 'Tokens ' . json_encode($tokens));
-
-    if ($tokens['success'] === 'true') {
-        $data['transToken'] = $tokens['transToken'];
-        $verify             = $dpo->verifyToken($data);
-        logTransaction('dpo.php', null, 'Verify ' . $verify);
-        $verify = <<<XML
-$verify
-XML;
-        if (!empty($verify) && $verify != '') {
-            $verify = str_replace(array("\r\n", "\r", "\n"), "", $verify);
-            $verify = new \SimpleXMLElement($verify);
-            if ($verify->Result->__toString() === '900') {
-                $payUrl = $dpo->getDpoGateway() . $data['transToken'];
-
-                // Store the test mode for the transaction so we can use it in callback
-                $tbl = _DB_PREFIX_ . 'dpogroupdpo';
-                Capsule::table($tbl)
-                       ->insert(
-                           [
-                               [
-                                   'recordtype' => 'dpotest',
-                                   'recordid'   => $data['transToken'],
-                                   'recordval'  => $testMode,
-                               ],
-                               [
-                                   'recordtype' => 'dpoclient',
-                                   'recordid'   => $data['transToken'],
-                                   'recordval'  => $data['companyToken'],
-                               ],
-                               [
-                                   'recordtype' => 'systemurl',
-                                   'recordid'   => $data['transToken'],
-                                   'recordval'  => $systemUrl,
-                               ],
-                               [
-                                   'recordtype' => 'dporef',
-                                   'recordid'   => $data['transToken'],
-                                   'recordval'  => $params['invoiceid'],
-                               ],
-                           ]
-                       );
-                header('Location: ' . $payUrl);
-            }
-        }
-    } else {
-        echo 'Something went wrong: ' . $tokens['resultExplanation'];
-        $url = $systemUrl . 'viewinvoice.php?id=' . $data['companyRef'];
-        echo <<<HTML
-<br><br><a href="$url">Click here to return</a>
-HTML;
-    }
-}

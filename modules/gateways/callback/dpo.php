@@ -1,6 +1,6 @@
 <?php
 /*
- * Copyright (c) 2023 DPO Group
+ * Copyright (c) 2024 DPO Group
  *
  * Author: App Inlet (Pty) Ltd
  *
@@ -12,20 +12,16 @@
 
 // Require libraries needed for gateway module functions
 require_once __DIR__ . '/../../../init.php';
-require_once __DIR__ . '/../../../includes/gatewayfunctions.php';
-require_once __DIR__ . '/../../../includes/invoicefunctions.php';
-require_once '../dpo/lib/constants.php';
-require_once '../dpo/lib/Dpo.php';
+require_once __DIR__ . '/../dpo/vendor/autoload.php';
 
 if (!defined("WHMCS")) {
     die("This file cannot be accessed directly");
 }
 
 use WHMCS\Database\Capsule;
+use Dpo\Common\Dpo as DPOCommon;
 
-if (!defined('_DB_PREFIX_')) {
-    define('_DB_PREFIX_', 'tbl');
-}
+const DB_PREFIX = 'tbl';
 
 /**
  * Check for existence of dpogroupdpo table and create if not
@@ -35,13 +31,13 @@ if (!function_exists('createDPOGroupdpoTable')) {
     function createDPOGroupdpoTable()
     {
         try {
-            if (Capsule::schema()->hasTable(_DB_PREFIX_ . 'paygatedpo')) {
-                Capsule::schema()->rename(_DB_PREFIX_ . 'paygatedpo', _DB_PREFIX_ . 'dpogroupdpo');
+            if (Capsule::schema()->hasTable(DB_PREFIX . 'paygatedpo')) {
+                Capsule::schema()->rename(DB_PREFIX . 'paygatedpo', DB_PREFIX . 'dpogroupdpo');
             }
 
-            if (!Capsule::schema()->hasTable(_DB_PREFIX_ . 'dpogroupdpo')) {
+            if (!Capsule::schema()->hasTable(DB_PREFIX . 'dpogroupdpo')) {
                 Capsule::schema()->create(
-                    _DB_PREFIX_ . 'dpogroupdpo',
+                    DB_PREFIX . 'dpogroupdpo',
                     function ($table) {
                         $table->increments('id');
                         $table->string('recordtype', 20);
@@ -51,44 +47,44 @@ if (!function_exists('createDPOGroupdpoTable')) {
                     }
                 );
             }
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
+            logActivity($e->getMessage());
         }
     }
 }
 
 createDPOGroupdpoTable();
 
-$transId = filter_var($_GET['TransID'], FILTER_SANITIZE_STRING);
+$transID = filter_var($_GET['TransID'], FILTER_SANITIZE_SPECIAL_CHARS);
 
-// Get test mode from db
-$tbl = _DB_PREFIX_ . 'dpogroupdpo';
-$testMode = (bool)Capsule::table($tbl)
-    ->where('recordtype', 'dpotest')
-    ->where('recordid', $transId)
-    ->value('recordval');
+$tbl = DB_PREFIX . 'dpogroupdpo';
 
 $companyToken = Capsule::table($tbl)
     ->where('recordtype', 'dpoclient')
-    ->where('recordid', $transId)
+    ->where('recordid', $transID)
     ->value('recordval');
 
-$dpo = new DPOGroup\Dpo($testMode);
+$dpoCommon = new DPOCommon(false);
 $data = [];
-$data['transToken'] = $transId;
+$data['transToken'] = $transID;
 $data['companyToken'] = $companyToken;
 
-$verify = $dpo->verifyToken($data);
+$verify = $dpoCommon->verifyToken($data);
 
 if ($verify != '') {
-    $verify = new \SimpleXMLElement($verify);
+    try {
+        $verify = new SimpleXMLElement($verify);
+    } catch (Exception $e) {
+        logActivity($e->getMessage());
+    }
 
     try {
         $invoiceId = Capsule::table($tbl)
-            ->where('recordid', $transId)
+            ->where('recordid', $transID)
             ->where('recordtype', 'dporef')
             ->value('recordval');
     } catch (Exception $e) {
-        throw new \UnexpectedValueException('Error Exception: Undefined $transId and $invoiceId');
+        throw new UnexpectedValueException('Error Exception: Undefined $transID and $invoiceId');
     }
 
     if ($verify->Result->__toString() === '000' && !empty((string)$invoiceId) == $verify->CompanyRef->__toString()) {
@@ -114,7 +110,7 @@ if ($verify != '') {
         $command = 'AddInvoicePayment';
         $data = [
             'invoiceid' => $invoiceId,
-            'transid' => $transId,
+            'transid' => $transID,
             'gateway' => $gatewayModuleName,
         ];
         $result = localAPI($command, $data);
@@ -122,11 +118,11 @@ if ($verify != '') {
     } else {
         $systemUrl = Capsule::table($tbl)
             ->where('recordtype', 'systemurl')
-            ->where('recordid', $transId)
+            ->where('recordid', $transID)
             ->value('recordval');
 
         Capsule::table($tbl)
-            ->where('recordid', $transId)
+            ->where('recordid', $transID)
             ->delete();
 
         header('Location: ' . $systemUrl . 'clientarea.php?action=invoices');
