@@ -1,0 +1,10 @@
+{
+  "require": {
+    "dpo/dpo-pay-common": "v1.0.2"
+  },
+  "autoload": {
+    "psr-4": {
+      "DPOGroup\\Services\\": "lib/Services/"
+    }
+  }
+}
