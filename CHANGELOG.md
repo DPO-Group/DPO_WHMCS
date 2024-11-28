@@ -4,7 +4,7 @@
 
 ### Added
 
-- Compatibility update for WHMCS 8.1.2 and PHP 8.2.
+- Compatibility update for WHMCS 8.11.2 and PHP 8.2.
 - Integration with the DPO Pay common library.
 - Code quality improvements
 
