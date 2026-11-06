@@ -12,6 +12,8 @@
 
 // Require libraries needed for gateway module functions
 require_once __DIR__ . '/../../../init.php';
+require_once __DIR__ . '/../../../includes/gatewayfunctions.php';
+require_once __DIR__ . '/../../../includes/invoicefunctions.php';
 require_once __DIR__ . '/../dpo/vendor/autoload.php';
 
 if (!defined("WHMCS")) {
@@ -23,10 +25,6 @@ use Dpo\Common\Dpo as DPOCommon;
 
 const DB_PREFIX = 'tbl';
 
-/**
- * Check for existence of dpogroupdpo table and create if not
- * In earlier versions this table was named paygatedpo -> rename if necessary
- */
 if (!function_exists('createDPOGroupdpoTable')) {
     function createDPOGroupdpoTable()
     {
@@ -48,85 +46,126 @@ if (!function_exists('createDPOGroupdpoTable')) {
                 );
             }
         } catch (Exception $e) {
-            logActivity($e->getMessage());
+            logActivity("DPO Table Error: " . $e->getMessage());
         }
     }
 }
 
 createDPOGroupdpoTable();
 
-$transID = filter_var($_GET['TransID'], FILTER_SANITIZE_SPECIAL_CHARS);
+$gatewayModuleName = basename(__FILE__, '.php'); // 'dpo'
+$tbl               = DB_PREFIX . 'dpogroupdpo';
 
-$tbl = DB_PREFIX . 'dpogroupdpo';
+// 1. Capture TransID/Token from any format DPO sends (GET/POST)
+$rawTransID = $_REQUEST['TransactionToken']
+           ?? $_REQUEST['transToken']
+           ?? $_REQUEST['TransID']
+           ?? $_REQUEST['transID']
+           ?? $_REQUEST['TransactionID']
+           ?? '';
 
+$transID = filter_var($rawTransID, FILTER_SANITIZE_SPECIAL_CHARS);
+
+// Fallback System URL
+$systemUrl = Capsule::table($tbl)
+                    ->where('recordtype', 'systemurl')
+                    ->where('recordid', $transID)
+                    ->value('recordval');
+
+if (empty($systemUrl)) {
+    $systemUrl = \WHMCS\Config\Setting::getValue('SystemURL');
+}
+$systemUrl = rtrim($systemUrl, '/') . '/';
+
+if (empty($transID)) {
+    logTransaction($gatewayModuleName, ['error' => 'Callback Failed: Missing Transaction Token'], 'Failure');
+    header('Location: ' . $systemUrl . 'clientarea.php?action=invoices');
+    exit;
+}
+
+// 2. Fetch stored mapping records from database
 $companyToken = Capsule::table($tbl)
-    ->where('recordtype', 'dpoclient')
-    ->where('recordid', $transID)
-    ->value('recordval');
+                       ->where('recordtype', 'dpoclient')
+                       ->where('recordid', $transID)
+                       ->value('recordval');
 
+$invoiceId = Capsule::table($tbl)
+                    ->where('recordtype', 'dporef')
+                    ->where('recordid', $transID)
+                    ->value('recordval');
+
+// 3. Verify token status with DPO API
 $dpoCommon = new DPOCommon(false);
-$data = [];
-$data['transToken'] = $transID;
-$data['companyToken'] = $companyToken;
+$data      = [
+    'transToken'   => $transID,
+    'companyToken' => $companyToken,
+];
 
-$verify = $dpoCommon->verifyToken($data);
+$verifyRaw = $dpoCommon->verifyToken($data);
 
-if ($verify != '') {
+if (!empty($verifyRaw)) {
     try {
-        $verify = new SimpleXMLElement($verify);
+        $verify = new SimpleXMLElement($verifyRaw);
     } catch (Exception $e) {
-        logActivity($e->getMessage());
+        logTransaction(
+            $gatewayModuleName,
+            ['error' => $e->getMessage()],
+            'XML Parse Error'
+        );
+        header('Location: ' . $systemUrl . 'clientarea.php?action=invoices');
+        exit;
     }
 
-    try {
-        $invoiceId = Capsule::table($tbl)
-            ->where('recordid', $transID)
-            ->where('recordtype', 'dporef')
-            ->value('recordval');
-    } catch (Exception $e) {
-        throw new UnexpectedValueException('Error Exception: Undefined $transID and $invoiceId');
-    }
+    $resultCode = (string)($verify->Result ?? '');
+    $companyRef = (string)($verify->CompanyRef ?? '');
+    $amount     = (float)($verify->TransactionAmount ?? 0);
 
-    if ($verify->Result->__toString() === '000' && !empty((string)$invoiceId) == $verify->CompanyRef->__toString()) {
-        // Transaction paid
-        // Delete records for this invoice
+    // Log callback payload into WHMCS Gateway Log
+    logTransaction($gatewayModuleName, [
+        'transID'     => $transID,
+        'invoiceId'   => $invoiceId,
+        'companyRef'  => $companyRef,
+        'resultCode'  => $resultCode,
+        'amount'      => $amount,
+    ], $resultCode === '000' ? 'Successful Payment' : 'Payment Failed / Declined');
+
+    // 4. Validate payment status and matching Invoice ID
+    if ($resultCode === '000' && !empty($invoiceId) && (string)$invoiceId === $companyRef) {
+
+        // Check invoice existence in WHMCS
+        $invoiceId = checkCbInvoiceID($invoiceId, $gatewayModuleName);
+
+        // Check if transaction was already processed
+        checkCbTransID($transID);
+
+        // Clean up temporary database records
         $recordids = Capsule::table($tbl)
-            ->select('recordid')
-            ->where('recordval', $invoiceId)
-            ->get();
+                            ->select('recordid')
+                            ->where('recordval', $invoiceId)
+                            ->get();
 
         $recs = [];
         foreach ($recordids as $recordid) {
             $recs[] = $recordid->recordid;
         }
 
-        Capsule::table($tbl)
-            ->whereIn('recordid', $recs)
-            ->delete();
+        if (!empty($recs)) {
+            Capsule::table($tbl)->whereIn('recordid', $recs)->delete();
+        }
 
-        // Detect module name from filename
-        $gatewayModuleName = basename(__FILE__, '.php');
+        // Apply Payment to Invoice in WHMCS
+        addInvoicePayment($invoiceId, $transID, $amount, 0, $gatewayModuleName);
 
-        $command = 'AddInvoicePayment';
-        $data = [
-            'invoiceid' => $invoiceId,
-            'transid' => $transID,
-            'gateway' => $gatewayModuleName,
-        ];
-        $result = localAPI($command, $data);
+        // Redirect customer to completed invoice view
         callback3DSecureRedirect($invoiceId, true);
+        exit;
     } else {
-        $systemUrl = Capsule::table($tbl)
-            ->where('recordtype', 'systemurl')
-            ->where('recordid', $transID)
-            ->value('recordval');
-
-        Capsule::table($tbl)
-            ->where('recordid', $transID)
-            ->delete();
-
+        Capsule::table($tbl)->where('recordid', $transID)->delete();
         header('Location: ' . $systemUrl . 'clientarea.php?action=invoices');
+        exit;
     }
-
-
+} else {
+    logTransaction($gatewayModuleName, ['transID' => $transID], 'Empty Verification Response');
+    header('Location: ' . $systemUrl . 'clientarea.php?action=invoices');
+    exit;
 }

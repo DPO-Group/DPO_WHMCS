@@ -1,6 +1,6 @@
 # DPO_WHMCS
 
-## DPO Pay WHMCS plugin v1.1.0 for WHMCS v8.11.2
+## DPO Pay WHMCS plugin v1.2.0 for WHMCS v8.13.1
 
 This is the DPO Pay plugin for WHMCS. Please feel free to contact
 the [DPO Pay support team](https://dpogroup.com/contact-us/) should you require any assistance.
@@ -9,7 +9,7 @@ the [DPO Pay support team](https://dpogroup.com/contact-us/) should you require 
 
 1. **Download the Plugin**
     - Visit the [releases page](https://github.com/DPO-Group/DPO_WHMCS/releases) and download and
-      extract [modules.zip](https://github.com/DPO-Group/DPO_WHMCS/releases/download/v1.1.0/modules.zip).
+      extract [modules.zip](https://github.com/DPO-Group/DPO_WHMCS/releases/download/v1.2.0/modules.zip).
 
 2. **Install the Plugin**
     - Copy the contents of the newly extracted **modules** folder into the WHMCS root directory (e.g.,
