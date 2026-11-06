@@ -82,7 +82,7 @@ function dpo_MetaData()
 {
     return array(
         'DisplayName'                 => 'DPO Pay',
-        'APIVersion'                  => '1.1', // Use API Version 1.1
+        'APIVersion'                  => '1.2', // Use API Version 1.2
         'DisableLocalCreditCardInput' => true,
         'TokenisedStorage'            => true,
     );
@@ -124,6 +124,7 @@ function dpo_link($params)
 {
     $jParams   = base64_encode(json_encode($params));
     $systemURL = $params['systemurl'];
+
     return <<<HTML
     <form method="post" action="{$systemURL}modules/gateways/dpo.php" >
     <input type="hidden" name="INITIATE" value="initiate" />
@@ -131,6 +132,5 @@ function dpo_link($params)
     <input type="submit" value="Pay using DPO Pay" />
     </form>
 HTML;
-
 }
 

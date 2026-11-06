@@ -71,6 +71,7 @@ class DPOPaymentService
         $data['backURL']           = $params['returnurl'];
         $data['companyRef']        = $params['invoiceid'];
         $data['customerCountry']   = $params['clientdetails']['countrycode'];
+        $data['transactionSource']   = 'whmcs';
 
         // Create token
         $tokens = $dpoCommon->createToken($data);
